@@ -10,6 +10,7 @@ import requests
 import io
 import tqdm
 import glob
+import tqdm
 
 from urllib.request import urlopen
 from zipfile import ZipFile
@@ -39,7 +40,7 @@ def Blocks_Shapefile(doc_path):
     gdf.sort_values(['COUNTYFP10', 'BLOCKCE10', 'TRACTCE10'], ascending=[True, True, True], inplace=True)
     gdf.reset_index(drop=True, inplace=True)
 
-    return gdf;
+    return gdf
 
 
 ## Function definition: Read Population by Blocks within a State
@@ -49,7 +50,7 @@ def Blocks_Population(doc_path):
     ### cols = pop.columns.tolist()   ## ['id', 'Geographic Area Name', 'Total', 'GEOID10']
     pop = pop[['id', 'Geographic Area Name', 'GEOID10', 'Total']]
 
-    return pop;
+    return pop
 
 
 ## Function definition: Read County Shapefile of USA
@@ -77,8 +78,7 @@ def USA_County_Shapefile(doc_path):
 
     gdf = gdf[(gdf.STATEFP10 != '02') & (gdf.STATEFP10 != '72') & (gdf.STATEFP10 != '15')]
 
-    return gdf;
-
+    return gdf
 
 
 ## A list of file names and path in 'Census_Shapefiles' folder.
@@ -105,14 +105,31 @@ pop = pd.concat([df_0, df_1, df_2, df_3, df_4, df_5, df_6, df_7, df_8, df_9,
                  df_40, df_41, df_42, df_43, df_44, df_45, df_46, df_47, df_48])
 
 
+
 geodata = pd.merge(gdf, pop, on='GEOID10')
+
+'''
+geodata.columns.str.replace(' ', '')
+Index(['STATEFP10', 'COUNTYFP10', 'TRACTCE10', 'BLOCKCE10', 'GEOID10',
+       'NAME10', 'MTFCC10', 'UR10', 'UACE10', 'UATYP10', 'FUNCSTAT10',
+       'ALAND10', 'AWATER10', 'INTPTLAT10', 'INTPTLON10', 'geometry', 'id',
+       'GeographicAreaName', 'Total']
+'''
+
+'''
+geodata.set_axis(['STATEFP10', 'COUNTYFP10', 'TRACTCE10', 'BLOCKCE10', 'GEOID10',
+                  'NAME10', 'MTFCC10', 'UR10', 'UACE10', 'UATYP10', 'FUNCSTAT10',
+                  'ALAND10', 'AWATER10', 'INTPTLAT10', 'INTPTLON10', 'geometry', 'id',
+                  'GeographicAreaName', 'Total'], axis=1, inplace=True)
+'''
+
 geodata = geodata[['STATEFP10', 'COUNTYFP10', 'GEOID10', 'Total', 'INTPTLON10', 'INTPTLAT10']]
 
 geodata['LON*POP'] = geodata['Total']*geodata['INTPTLON10']
 geodata['LAT*POP'] = geodata['Total']*geodata['INTPTLAT10']
 
 ## Calculation of population weighted centroids for each county
-gdf_bycounty = geodata.groupby(['STATEFP10', 'COUNTYFP10'])['Total', 'LON*POP', 'LAT*POP'].sum().reset_index()
+gdf_bycounty = geodata.groupby(['STATEFP10', 'COUNTYFP10'])[['Total', 'LON*POP', 'LAT*POP']].sum().reset_index()
 gdf_bycounty['LON'] = gdf_bycounty['LON*POP']/gdf_bycounty['Total']
 gdf_bycounty['LAT'] = gdf_bycounty['LAT*POP']/gdf_bycounty['Total']
 
