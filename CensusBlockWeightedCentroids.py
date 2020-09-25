@@ -217,3 +217,6 @@ dist_FIPS1 = pd.DataFrame({'distance_FIPS1':distance_FIPS1})
 dist_FIPS2 = pd.DataFrame({'distance_FIPS2':distance_FIPS2})
 
 distance = pd.concat([df_bc, dist_FIPS1, dist_FIPS2], axis=1)
+
+dist = distance.drop(['Intersection', 'Cent_FIPS1', 'Cent_FIPS2'], axis=1)
+dist.to_csv('CountyPair_Centroid_Border_Distance.csv', index=False)
