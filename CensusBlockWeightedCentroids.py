@@ -80,7 +80,7 @@ def USA_County_Shapefile(doc_path):
 
     return gdf
 
-
+'''
 ## A list of file names and path in 'Census_Shapefiles' folder.
 shapefile_list = glob.glob('/home/jinli/Desktop/DataForMasterThesis/Census_Shapefiles/*.zip')
 pop_list = glob.glob('/home/jinli/Desktop/DataForMasterThesis/Census_Block_Population/*.csv')
@@ -108,20 +108,21 @@ pop = pd.concat([df_0, df_1, df_2, df_3, df_4, df_5, df_6, df_7, df_8, df_9,
 
 geodata = pd.merge(gdf, pop, on='GEOID10')
 
-'''
+####################################################################################################################
 geodata.columns.str.replace(' ', '')
 Index(['STATEFP10', 'COUNTYFP10', 'TRACTCE10', 'BLOCKCE10', 'GEOID10',
        'NAME10', 'MTFCC10', 'UR10', 'UACE10', 'UATYP10', 'FUNCSTAT10',
        'ALAND10', 'AWATER10', 'INTPTLAT10', 'INTPTLON10', 'geometry', 'id',
        'GeographicAreaName', 'Total']
-'''
 
-'''
+
+
 geodata.set_axis(['STATEFP10', 'COUNTYFP10', 'TRACTCE10', 'BLOCKCE10', 'GEOID10',
                   'NAME10', 'MTFCC10', 'UR10', 'UACE10', 'UATYP10', 'FUNCSTAT10',
                   'ALAND10', 'AWATER10', 'INTPTLAT10', 'INTPTLON10', 'geometry', 'id',
                   'GeographicAreaName', 'Total'], axis=1, inplace=True)
-'''
+
+#####################################################################################################################
 
 geodata = geodata[['STATEFP10', 'COUNTYFP10', 'GEOID10', 'Total', 'INTPTLON10', 'INTPTLAT10']]
 
@@ -134,3 +135,85 @@ gdf_bycounty['LON'] = gdf_bycounty['LON*POP']/gdf_bycounty['Total']
 gdf_bycounty['LAT'] = gdf_bycounty['LAT*POP']/gdf_bycounty['Total']
 
 gdf_bycounty.to_csv('CountyCentroids.csv', index=False)
+'''
+
+### Creat new geodataframe with centroid points transfromed to geometry
+centroids = pd.read_csv('CountyCentroids.csv')
+centroids['STATEFP10'] = centroids['STATEFP10'].astype(str)
+centroids['STATEFP10'] = centroids['STATEFP10'].str.zfill(2)
+centroids['COUNTYFP10'] = centroids['COUNTYFP10'].astype(str)
+centroids['COUNTYFP10'] = centroids['COUNTYFP10'].str.zfill(3)
+
+geometry = [Point(xy) for xy in zip(centroids['LON'], centroids['LAT'])]
+cent = gpd.GeoDataFrame(centroids, geometry=geometry)
+
+cent['GEOID10'] = cent['STATEFP10'] + cent['COUNTYFP10']
+GEOID10 = cent['GEOID10']
+cent.drop(labels=['GEOID10'], axis=1, inplace = True)
+cent.insert(0, 'GEOID10', GEOID10)
+
+
+## Shapefile of all Counties
+allcounties = USA_County_Shapefile('/home/jinli/PycharmProjects/tl_2010_us_county10(NEW).zip')
+## Geodataframe of all counties in USA
+gdf_ac = allcounties[['GEOID10', 'INTPTLAT10', 'INTPTLON10', 'geometry']]
+
+## Read county-pair .txt file
+countypairs = pd.read_csv('/home/jinli/PycharmProjects/county-pair-list.txt')
+countypairs.drop_duplicates(subset='COUNTYPAIR_ID', inplace = True)
+
+new = countypairs['COUNTYPAIR_ID'].str.split("-", n = 1, expand = True)
+
+countypairs['GEOID10_FIPS1'] = new[0]
+countypairs['GEOID10_FIPS2'] = new[1]
+countypairs['STATE_FIPS1'] = countypairs['GEOID10_FIPS1'].map(lambda x: x[0:2])
+countypairs['STATE_FIPS2'] = countypairs['GEOID10_FIPS2'].map(lambda x: x[0:2])
+countypairs.drop(countypairs.loc[countypairs['GEOID10_FIPS1']=='30113'].index, inplace=True)
+
+countypairs = countypairs[['COUNTYPAIR_ID', 'STATE_FIPS1', 'GEOID10_FIPS1', 'STATE_FIPS2', 'GEOID10_FIPS2']]
+countypairs.reset_index(drop=True, inplace=True)
+
+## County Boundary Intersection: cbi
+### County pairs geometries
+GEOID10_FIPS1 = countypairs[['GEOID10_FIPS1']]
+GEOID10_FIPS2 = countypairs[['GEOID10_FIPS2']]
+cb_GEOID10_FIPS1 = pd.merge(GEOID10_FIPS1, gdf_ac, how='left', left_on='GEOID10_FIPS1', right_on='GEOID10')
+cb_GEOID10_FIPS2 = pd.merge(GEOID10_FIPS2, gdf_ac, how='left', left_on='GEOID10_FIPS2', right_on='GEOID10')
+cb_FIPS1 = cb_GEOID10_FIPS1[['geometry']].rename(columns={'geometry': 'geometry_FIPS1'})
+cb_FIPS2 = cb_GEOID10_FIPS2[['geometry']].rename(columns={'geometry': 'geometry_FIPS2'})
+
+cbp = pd.concat([cb_FIPS1, cb_FIPS2], axis=1)
+
+cbi = pd.DataFrame(columns=['intersection'])
+
+for index, row in cbp.iterrows():
+    intersection = row['geometry_FIPS1'].intersection(row['geometry_FIPS2'])
+    cbi = cbi.append({'intersection': intersection}, ignore_index=True)
+
+## Dataframe contains County-Pair-ID and the Shared-Boundary-Geometry
+geocbi = gpd.GeoDataFrame(countypairs, geometry=cbi.intersection)
+
+## Dataframe that contains weighted centroids coordinates of all counties
+geocent = cent[['GEOID10', 'geometry']]
+
+## Joining dataframes to form a new one which include shared boundaries & centroids information
+df = pd.merge(geocbi, geocent, how='left', left_on='GEOID10_FIPS1', right_on='GEOID10')
+df = pd.merge(df, geocent, how='left', left_on='GEOID10_FIPS2', right_on='GEOID10')
+df_bc = df.rename(columns={'geometry_x': 'Intersection',
+                           'geometry_y': 'Cent_FIPS1', 'geometry': 'Cent_FIPS2'})
+df_bc.drop(['GEOID10_x', 'GEOID10_y'], axis=1, inplace=True)
+
+
+## Distance between population-weighted-county-centroids and boundaries
+distance_FIPS1, distance_FIPS2 = [], []
+for index, row in df_bc.iterrows():
+    ##points.distance(lines)
+    dist1 = row['Cent_FIPS1'].distance(row['Intersection'])
+    dist2 = row['Cent_FIPS2'].distance(row['Intersection'])
+    distance_FIPS1.append(dist1)
+    distance_FIPS2.append(dist2)
+
+dist_FIPS1 = pd.DataFrame({'distance_FIPS1':distance_FIPS1})
+dist_FIPS2 = pd.DataFrame({'distance_FIPS2':distance_FIPS2})
+
+distance = pd.concat([df_bc, dist_FIPS1, dist_FIPS2], axis=1)
