@@ -19,6 +19,9 @@ def QCEW_IN_LIST(doc_path):
     qcewdata['area_fips'] = qcewdata['area_fips'].astype(str)
     qcewdata['area_fips'] = qcewdata['area_fips'].str.zfill(5)
 
+    qcewdata.drop(qcewdata.columns[21:], axis=1, inplace=True)
+    qcewdata = qcewdata.loc[qcewdata['own_code'] == 0]
+
     qcewdata = pd.merge(qcewdata, ids, left_on='area_fips', right_on='id')
     return qcewdata
 
