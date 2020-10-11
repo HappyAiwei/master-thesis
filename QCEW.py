@@ -37,14 +37,7 @@ qcewdata05 = QCEW_IN_LIST('/home/jinli/Desktop/Thesis/Data/QCEW/2005.q1-q4.by_ar
 #qcewdata14 = QCEW_IN_LIST('...')
 #qcewdata15 = QCEW_IN_LIST('...')
 
-qcewdata05.to_csv('QCEW2005.csv', index=False)
-#qcewdata06.to_csv('QCEW2006.csv', index=False)
-#qcewdata07.to_csv('QCEW2007.csv', index=False)
-#qcewdata08.to_csv('QCEW2008.csv', index=False)
-#qcewdata09.to_csv('QCEW2009.csv', index=False)
-#qcewdata10.to_csv('QCEW2010.csv', index=False)
-#qcewdata11.to_csv('QCEW2011.csv', index=False)
-#qcewdata12.to_csv('QCEW2012.csv', index=False)
-#qcewdata13.to_csv('QCEW2013.csv', index=False)
-#qcewdata14.to_csv('QCEW2014.csv', index=False)
-#qcewdata15.to_csv('QCEW2015.csv', index=False)
+qcewdata = pd.concat([qcewdata05, qcewdata06, qcewdata07, qcewdata08, qcewdata09, qcewdata10,
+                      qcewdata11, qcewdata12, qcewdata13, qcewdata14, qcewdata15], ignore_index=True)
+
+qcewdata.to_csv('QCEW.csv', index=False)
